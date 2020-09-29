@@ -1,11 +1,10 @@
 <resources>
-    <string name="app_name">Week1_task</string>
-    <string name="value_hint">请输入温度值</string>
-    <string name="celsius_to_fahren">摄氏转华氏</string>
-    <string name="fahren_to_celsius">华氏转摄氏</string>
-    <string name="msg_error_input">请输入有效温度值</string>
-    <string name="fahren">华氏</string>
-    <string name="celsius">摄氏</string>
-    <string name="to_fahren">度->华氏温度</string>
-    <string name="to_celsius">度->摄氏温度</string>
+    <string name="tips">请输入</string>
+    <string name="welcome">输出</string>
+    <string name="D1">美元</string>
+    <string name="D2">欧元</string>
+    <string name="D3">韩元</string>
+    <string name="config">配置</string>
+    <string name="save">更改</string>
+    <string name="app_name">汇率转换</string>
 </resources>

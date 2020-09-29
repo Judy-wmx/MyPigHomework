@@ -1,81 +1,137 @@
 package com.example.myapplication;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
+import com.example.myapplication.R;
 
-    private TextView tvTitle;       //静态文本框
-    private TextView tvResult;
-    private EditText editInput;     //定义文本框
-    private Button btnC2F;          //定义按钮
-    private Button btnF2C;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+
+public class MainActivity extends AppCompatActivity implements Runnable{
+    Handler handler = new Handler(){
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            if(msg.what==5){
+                String str =  (String)msg.obj;
+                Log.i("TAG", "handleMessage: getMessage msg = "+str);
+            }
+            super.handleMessage(msg);
+        }
+    };
+    URL url;
+    float dollar;
+    float pound;
+    float euro;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        SharedPreferences sp = getSharedPreferences("rate", MODE_PRIVATE);
         setContentView(R.layout.activity_main);
-
-        //通过finViewById方法实例化以上控件类
-        tvTitle = (TextView)findViewById(R.id.tv_title);
-        tvResult = (TextView)findViewById(R.id.tv_result);
-        editInput = (EditText) findViewById(R.id.value_hint);
-        btnC2F = (Button)findViewById(R.id.celsius_to_fahren);
-        btnF2C = (Button)findViewById(R.id.fahren_to_celsius);
-
-        //设置按钮点击监听
-        btnC2F.setOnClickListener(this);
-        btnF2C.setOnClickListener(this);
+        Thread t = new Thread(this);
+        t.start();
+        dollar = sp.getFloat("dollar_rate", 0.146585f);
+        pound = sp.getFloat("pound_rate", 0.114881f);
+        euro = sp.getFloat("euro_rate", 0.125975f);
     }
 
-    @Override
-    public void onClick(View v) {
-        switch(v.getId()){
-            case R.id.celsius_to_fahren:
-                outputValue(false);
-                break;
-            case R.id.fahren_to_celsius:
-                outputValue(true);
-                break;
-            default:
-        }
-    }
-    private boolean checkValidInput(){
-        if(editInput.getText().length()==0){
-            String errorMsg = getResources().getString(R.string.msg_error_input);
-            Toast.makeText(this,errorMsg,Toast.LENGTH_LONG).show();
-            return false;
+    public  void btn(View v){
+        TextView input = findViewById(R.id.inp);
+        TextView output = findViewById(R.id.outp);
+        if(input.getText().toString().isEmpty()) {
+            //no input
+            Toast.makeText(this, "请输入人民币金额", Toast.LENGTH_SHORT).show();
         }else{
-            return true;
-        }
-    }
-    private void outputValue(boolean isF2C){
-        if(checkValidInput()){
-            float inputValue = Float.parseFloat(editInput.getText().toString());
-            if(isF2C){
-                String title = getResources().getString(R.string.fahren);
-                title = title + String.valueOf(inputValue);
-                title = title + getResources().getString(R.string.celsius);
-                tvTitle.setText(title);
-                tvResult.setText(String.valueOf(getF2C(inputValue)));
-            }else{
-                String title = getResources().getString(R.string.celsius);
-                title = title + String.valueOf(inputValue);
-                title = title + getResources().getString(R.string.fahren);
-                tvTitle.setText(title);
-                tvResult.setText(String.valueOf(getC2F(inputValue)));
+            String str = input.getText().toString();
+            Float result;
+            if(v.getId() == R.id.btn1){
+                result = Float.parseFloat(str) * dollar;
+                output.setText("" + result);
+            }else if(v.getId() == R.id.btn2){
+                result = Float.parseFloat(str) * pound;
+                output.setText("" + result);
+            }else if(v.getId() == R.id.btn3){
+                result = Float.parseFloat(str) * euro;
+                output.setText("" + result);
             }
         }
     }
-    private float getF2C(float f){
-        return ((f-32.0f)/1.8f);
+
+    public  void btn_conifg(View v){
+        Intent config = new Intent(this, MainActivity2.class);
+        config.putExtra("dollar_rate", dollar);
+        config.putExtra("pound_rate", pound);
+        config.putExtra("euro_rate", euro);
+        startActivityForResult(config,1);
     }
-    private float getC2F(float c){
-        return (c*1.8f)+32.0f;
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if(requestCode==1 && resultCode==2){
+            Bundle rate = data.getExtras();
+            Toast.makeText(this, "配置更新中", Toast.LENGTH_SHORT).show();
+            dollar = rate.getFloat("dollar_rate", 0.0f);
+            pound = rate.getFloat("pound_rate", 0.0f);
+            euro = rate.getFloat("euro_rate", 0.0f);
+            Log.i("TAG","dollar_rate=" + dollar);
+            Toast.makeText(this, "配置已更新", Toast.LENGTH_SHORT).show();
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void run() {
+        Message msg = handler.obtainMessage(5);
+        try {
+            url = new URL("http://www.usd-cny.com/bankofchina.htm");
+            HttpURLConnection http = (HttpURLConnection) url.openConnection();
+            InputStream in = http.getInputStream();
+            String html = inputStream2String(in);
+            Log.i("TAG","run:html = "+html);
+//            Document doc = Jsoup.connect(URL).data().post();
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+//        msg.obj = "Hello from run()";
+        handler.sendMessage(msg);
+    }
+
+    private String inputStream2String(InputStream inputStream)
+            throws IOException {
+        final int bufferSize = 1024;
+        final char[] buffer = new char[bufferSize];
+        final StringBuilder out = new StringBuilder();
+        Reader in = new InputStreamReader(inputStream, "gb2312");
+        while (true) {
+            int rsz = in.read(buffer, 0, buffer.length);
+            if (rsz < 0)
+                break;
+            out.append(buffer, 0, rsz);
+        }
+        return out.toString();
     }
 }
